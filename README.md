@@ -46,10 +46,10 @@ cd rsd-oai-pmh && mvn package && cd ..
 mkdir rsd-xml-files 
 
 # Add the Java harvester as cronjob, run it three times per day
-(crontab -l ; echo "45 */8 * * * /usr/bin/java -cp /home/ubuntu/rsd-oai-pmh/target/rsd-oai-pmh-1.0-SNAPSHOT-jar-with-dependencies.jar nl.esciencecenter.DataciteDownloader /home/ubuntu/rsd-xml-files") | crontab -
+(crontab -l ; echo "45 */8 * * * /usr/bin/java -cp ./rsd-oai-pmh/target/rsd-oai-pmh-1.0-SNAPSHOT-jar-with-dependencies.jar nl.esciencecenter.DataciteDownloader ./rsd-xml-files") | crontab -
 
 # Run the Java harvester once manually
-java -cp /home/ubuntu/rsd-oai-pmh/target/rsd-oai-pmh-1.0-SNAPSHOT-jar-with-dependencies.jar nl.esciencecenter.DataciteDownloader /home/ubuntu/rsd-xml-files
+java -cp ./rsd-oai-pmh/target/rsd-oai-pmh-1.0-SNAPSHOT-jar-with-dependencies.jar nl.esciencecenter.DataciteDownloader ./rsd-xml-files
 ```
 
 Now edit `apache-tomcat-7.0.109/conf/tomcat-users.xml` to add the role `oai_admin` and to set an admin user which also has that role `oai_admin`. You can do that with the following lines as children to the `tomcat-users` element, change the username and password:
@@ -61,9 +61,9 @@ Now edit `apache-tomcat-7.0.109/conf/tomcat-users.xml` to add the role `oai_admi
 
 ```shell
 # start Tomcat
-echo 'export CATALINA_HOME=/home/ubuntu/apache-tomcat-7.0.109' >> ~/.bashrc
+echo 'export CATALINA_HOME=./apache-tomcat-7.0.109' >> ~/.bashrc
 exec bash
-echo 'export JAVA_HOME=/usr' >> /home/ubuntu/apache-tomcat-7.0.109/bin/setenv.sh
+echo 'export JAVA_HOME=/usr' >> ./apache-tomcat-7.0.109/bin/setenv.sh
 $CATALINA_HOME/bin/catalina.sh start
 ```
 
