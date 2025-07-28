@@ -46,6 +46,7 @@ cd rsd-oai-pmh && mvn package && cd ..
 mkdir rsd-xml-files 
 
 # Add the Java harvester as cronjob, run it three times per day
+# USE ABSOLUTE PATHS HERE
 (crontab -l ; echo "45 */8 * * * /usr/bin/java -cp ./rsd-oai-pmh/target/rsd-oai-pmh-1.0-SNAPSHOT-jar-with-dependencies.jar nl.esciencecenter.DataciteDownloader ./rsd-xml-files") | crontab -
 
 # Run the Java harvester once manually
