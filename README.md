@@ -82,3 +82,10 @@ $CATALINA_HOME/bin/catalina.sh start
 ```
 
 Visit the jOAI admin interface again, configure it and add the directory containing the XML files to the data provider.
+
+### RSD settings
+
+In the "Metadata Files Configuration", add two entries:
+
+  1. Nickname for these files: `RSD`, Format of files: `oai_datacite`, Path to the directory: `/home/ubuntu/rsd-xml-files`, Metadata namespace: `https://schema.datacite.org/oai/oai-1.1/`, Metadata schema: `https://schema.datacite.org/oai/oai-1.1/oai.xsd`
+  2.  Nickname for these files: `RSD Netherlands `, Format of files: `oai_datacite`, Path to the directory: `/home/ubuntu/rsd-xml-files/netherlands`, Metadata namespace: `https://schema.datacite.org/oai/oai-1.1/`, Metadata schema: `https://schema.datacite.org/oai/oai-1.1/oai.xsd`
