@@ -21,8 +21,11 @@ import java.util.regex.Pattern;
 
 public class DataciteDownloader {
 
+	// https://support.datacite.org/docs/rate-limit
+	// we use a small buffer to ensure we never go over the rate limit
+	private static final Throttler dataciteApiThrottler = new Throttler(950, 315, TimeUnit.SECONDS);
+
 	public static final URI RSD_RELEASES = URI.create("https://research-software-directory.org/api/v1/release_version?select=mention(doi),release(software!release_software_fkey(software_for_organisation(organisation,status)))");
-	public static final String DATACITE_OAI = "https://oai.datacite.org/oai/?verb=GetRecord&metadataPrefix=oai_datacite&identifier=doi:";
 	public static final XMLOutputFactory XML_OUTPUT_FACTORY = XMLOutputFactory.newDefaultFactory();
 	public static final XMLInputFactory XML_INPUT_FACTORY = XMLInputFactory.newDefaultFactory();
 	public static final XMLEventFactory XML_EVENT_FACTORY = XMLEventFactory.newDefaultFactory();
@@ -42,7 +45,14 @@ public class DataciteDownloader {
 	);
 
 
+	// two arguments are expected in this order:
+	// - the path in which the XML files should be stored
+	// - the contact email address for the DataCite API
 	public static void main(String[] args) throws IOException, InterruptedException {
+		if (args == null || args.length != 2) {
+			throw new IllegalArgumentException("two CLI parameters are expected");
+		}
+
 		System.out.println("Start scraping OAI-PMH data from DataCite");
 		HttpClient client = HttpClient.newHttpClient();
 		HttpRequest request = HttpRequest.newBuilder(RSD_RELEASES)
@@ -80,6 +90,9 @@ public class DataciteDownloader {
 			}
 		}
 
+		String encodedEmail = URLEncoder.encode(args[1], StandardCharsets.UTF_8);
+		String dataciteOaiUrl = "https://oai.datacite.org/oai/?mailto=%s&verb=GetRecord&metadataPrefix=oai_datacite&identifier=doi:".formatted(encodedEmail);
+
 		Files.createDirectories(Path.of(args[0], "netherlands"));
 		Collection<Callable<Void>> tasks = new ArrayList<>();
 		for (String doi : dois) {
@@ -87,7 +100,7 @@ public class DataciteDownloader {
 				String fileName = encodeDoi(doi) + ".xml";
 				Path path = dutchDois.contains(doi) ? Path.of(args[0], "netherlands", fileName) : Path.of(args[0], fileName);
 				try (OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(path));
-					 InputStream inputStream = new BufferedInputStream(downloadDataciteOaiData(doi))) {
+					 InputStream inputStream = new BufferedInputStream(downloadDataciteOaiData(dataciteOaiUrl + doi))) {
 
 					XMLEventReader xmlEventReader = XML_INPUT_FACTORY.createXMLEventReader(inputStream);
 					XMLEventWriter xmlEventWriter = XML_OUTPUT_FACTORY.createXMLEventWriter(outputStream);
@@ -135,28 +148,31 @@ public class DataciteDownloader {
 		}
 
 		ExecutorService executorService = Executors.newFixedThreadPool(10);
+		ExecutorCompletionService<Void> executorCompletionService = new ExecutorCompletionService<>(executorService);
 		try {
-			List<Future<Void>> completedTasks = executorService.invokeAll(tasks);
-			for (Future<Void> completedTask : completedTasks) {
+			int taskSize = tasks.size();
+			for (Callable<Void> task : tasks) {
+				executorCompletionService.submit(task);
+			}
+			for (int i = 0; i < taskSize; i++) {
 				try {
-					completedTask.get();
+					executorCompletionService.take().get();
 				} catch (ExecutionException e) {
 					e.printStackTrace();
 				}
 			}
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
 		} finally {
 			executorService.shutdownNow();
 		}
 		System.out.println("Done scraping OAI-PMH data from DataCite");
 	}
 
-	public static InputStream downloadDataciteOaiData(String doi) throws IOException, InterruptedException {
+	public static InputStream downloadDataciteOaiData(String url) throws IOException, InterruptedException {
 		HttpClient client = HttpClient.newHttpClient();
-		HttpRequest request = HttpRequest.newBuilder(URI.create(DATACITE_OAI + doi))
+		HttpRequest request = HttpRequest.newBuilder(URI.create(url))
 				.build();
 
+		dataciteApiThrottler.awaitPermission();
 		HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
 		if (response.statusCode() != 200) throw new RuntimeException("DataCite status is " + response.statusCode());
 
